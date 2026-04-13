@@ -1,90 +1,129 @@
-import { listarTarefas } from '../controllers/tarefa.controller.js'
+import {
+  listar,
+  criar,
+  buscarPorId,
+  atualizar,
+  alternarConcluido,
+  remover,
+  obterResumo,
+  listarPendentes
+} from '../models/tarefa.model.js'
 
-export default async function tarefaRoutes(server, options) {
+// GET /tarefas
+export async function listarTarefas(request, reply) {
+  console.log("Controller: listarTarefas chamado")
 
-  // DADOS utilizados pelas requisições relacionadas às tarefas.
-  const tarefas = [
-    { id: 1, descricao: "Fazer compras", concluido: false },
-    { id: 2, descricao: "Lavar o carro", concluido: false },
-    { id: 3, descricao: "Estudar Fastify", concluido: true }
-  ]
+  const { busca, concluido } = request.query
 
-  server.get('/tarefas', async (request, reply) => {
-    console.log("Routes: GET /tarefas chamada")
+  const resultado = await listar({ busca, concluido })
 
-    await listarTarefas(request, reply)
-  })
+  return reply.send(resultado)
+}
 
-  server.post('/tarefas', async (request, reply) => {
-    const { descricao } = request.body
-    if (!descricao || descricao.trim() === '') {
-      return reply.status(400).send({
-        status: 'error',
-        message: 'A descrição da tarefa é obrigatória'
-      })
-    }
+// POST /tarefas
+export async function criarTarefa(request, reply) {
+  console.log("Controller: criarTarefa chamado")
 
-    const novoId = tarefas.length > 0 ? tarefas[tarefas.length - 1].id + 1 : 1
-    const novaTarefa = { id: novoId, descricao, concluido: false }
+  const { descricao } = request.body
 
-    tarefas.push(novaTarefa)
-    return reply.status(201).send(novaTarefa)
-  })
+  if (!descricao || descricao.trim() === '') {
+    return reply.status(400).send({
+      status: 'error',
+      message: 'A descrição da tarefa é obrigatória'
+    })
+  }
 
-  server.get('/tarefas/resumo', async (request, reply) => {
-    const total = tarefas.length
-    const concluidas = tarefas.filter(t => t.concluido).length
-    const pendentes = total - concluidas
+  const nova = await criar(descricao)
 
-    return reply.send({ total, concluidas, pendentes })
-  })
+  return reply.status(201).send(nova)
+}
 
-  server.get('/tarefas/:id', async (request, reply) => {
-    const id = Number(request.params.id)
-    const tarefa = tarefas.find(t => t.id === id)
+// GET /tarefas/:id
+export async function obterTarefa(request, reply) {
+  console.log("Controller: obterTarefa chamado")
 
-    if (!tarefa) {
-      return reply.status(404).send({ status: 'error', message: 'Tarefa não encontrada' })
-    }
+  const id = Number(request.params.id)
 
-    reply.send(tarefa)
-  })
+  const tarefa = await buscarPorId(id)
 
-  server.patch('/tarefas/:id', async (request, reply) => {
-    const id = Number(request.params.id)
-    const index = tarefas.findIndex(t => t.id === id)
+  if (!tarefa) {
+    return reply.status(404).send({
+      status: 'error',
+      message: 'Tarefa não encontrada'
+    })
+  }
 
-    if (index === -1) {
-      return reply.status(404).send({ status: 'error', message: 'Tarefa não encontrada' })
-    }
+  return reply.send(tarefa)
+}
 
-    const tarefaAtualizada = request.body
-    tarefas[index] = { ...tarefas[index], ...tarefaAtualizada, id }
+// PATCH /tarefas/:id
+export async function atualizarTarefa(request, reply) {
+  console.log("Controller: atualizarTarefa chamado")
 
-    return reply.send(tarefas[index])
-  })
+  const id = Number(request.params.id)
 
-  server.patch('/tarefas/:id/concluir', async (request, reply) => {
-    const id = Number(request.params.id)
-    const index = tarefas.findIndex(t => t.id === id)
+  const tarefa = await atualizar(id, request.body)
 
-    if (index === -1) {
-      return reply.status(404).send({ status: 'error', message: 'Tarefa não encontrada' })
-    }
+  if (!tarefa) {
+    return reply.status(404).send({
+      status: 'error',
+      message: 'Tarefa não encontrada'
+    })
+  }
 
-    tarefas[index].concluido = !tarefas[index].concluido
-    return reply.send(tarefas[index])
-  })
+  return reply.send(tarefa)
+}
 
-  server.delete('/tarefas/:id', async (request, reply) => {
-    const id = Number(request.params.id)
-    const index = tarefas.findIndex(t => t.id === id)
+// PATCH /tarefas/:id/concluir
+export async function concluirTarefa(request, reply) {
+  console.log("Controller: concluirTarefa chamado")
 
-    if (index === -1) {
-      return reply.status(404).send({ status: 'error', message: 'Tarefa não encontrada' })
-    }
+  const id = Number(request.params.id)
 
-    tarefas.splice(index, 1)
-    return reply.status(204).send()
-  })
+  const tarefa = await alternarConcluido(id)
+
+  if (!tarefa) {
+    return reply.status(404).send({
+      status: 'error',
+      message: 'Tarefa não encontrada'
+    })
+  }
+
+  return reply.send(tarefa)
+}
+
+// DELETE /tarefas/:id
+export async function removerTarefa(request, reply) {
+  console.log("Controller: removerTarefa chamado")
+
+  const id = Number(request.params.id)
+
+  const ok = await remover(id)
+
+  if (!ok) {
+    return reply.status(404).send({
+      status: 'error',
+      message: 'Tarefa não encontrada'
+    })
+  }
+
+  return reply.status(204).send()
+}
+
+// GET /tarefas/resumo
+export async function obterResumoController(request, reply) {
+  console.log("Controller: obterResumo chamado")
+
+  const resumo = await obterResumo()
+
+  return reply.send(resumo)
+}
+
+
+export async function listarTarefasPendentes(request, reply) {
+  console.log("Controller: listarTarefasPendentes chamado")
+
+  const resultado = await listarPendentes()
+
+  return reply.send(resultado)
 }
